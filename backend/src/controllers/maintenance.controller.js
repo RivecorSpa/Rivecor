@@ -1124,7 +1124,7 @@ const createFormPre = async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 };
-const getRequestPdf = async (req, res) => {
+const getRequestPdf  = async (req, res) => {
   try {
     const MaintenanceRequest = getMaintenanceRequestModel();
 
@@ -1278,4 +1278,5 @@ module.exports = {
   getHistory,
   updateRequestStatus,
   createFormPre,
+  getRequestPdf,
 };
