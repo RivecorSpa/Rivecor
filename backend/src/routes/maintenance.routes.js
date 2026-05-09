@@ -23,5 +23,6 @@ r.put('/requests/:id/status', authorize('ADMIN', 'OPERATOR'), c.updateRequestSta
 
 // evaluación
 r.put('/requests/:id/rate', c.rateRequest);
+r.get('/requests/:id/pdf', c.getRequestPdf);
 
 module.exports = r;

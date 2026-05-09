@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const PDFDocument = require('pdfkit');
 
 function safeParseJSON(value) {
   try {
@@ -1121,6 +1122,146 @@ const createFormPre = async (req, res) => {
   } catch (e) {
     console.error('createFormPre error:', e);
     res.status(500).json({ error: e.message });
+  }
+};
+const getRequestPdf = async (req, res) => {
+  try {
+    const MaintenanceRequest = getMaintenanceRequestModel();
+
+    if (!MaintenanceRequest) {
+      return res.status(500).json({
+        error: 'Modelo de solicitudes no disponible',
+      });
+    }
+
+    const request = await MaintenanceRequest.findUnique({
+      where: { id: req.params.id },
+      include: {
+        users: true,
+        equipments: {
+          include: {
+            companies: true,
+          },
+        },
+        maintenance_forms: {
+          include: {
+            mechanics: true,
+          },
+        },
+      },
+    });
+
+    if (!request) {
+      return res.status(404).json({
+        error: 'Solicitud no encontrada',
+      });
+    }
+
+    const mechanic = request?.maintenance_forms?.mechanics || null;
+
+    const statusLabel = {
+      PENDING: 'Pendiente',
+      SCHEDULED: 'Tomado',
+      IN_PROGRESS: 'En camino',
+      COMPLETED: 'Finalizado',
+      CANCELLED: 'Cancelado',
+    };
+
+    const doc = new PDFDocument({
+      margin: 45,
+      size: 'A4',
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="solicitud-${request.id}.pdf"`
+    );
+
+    doc.pipe(res);
+
+    doc.fontSize(24).fillColor('#111111').text('RIVECOR ECO MÓVIL 360', {
+      align: 'center',
+    });
+
+    doc.moveDown(0.4);
+
+    doc.fontSize(15).fillColor('#666666').text(
+      'Comprobante de solicitud de mantención',
+      { align: 'center' }
+    );
+
+    doc.moveDown(2);
+
+    doc.fontSize(18).fillColor('#000000').text('Información general');
+    doc.moveDown(0.8);
+    doc.fontSize(12);
+    doc.text(`Solicitud ID: ${request.id}`);
+    doc.text(`Fecha creación: ${new Date(request.createdAt).toLocaleString('es-CL')}`);
+    doc.text(`Estado: ${statusLabel[request.status] || request.status}`);
+    doc.text(`Prioridad: ${request.priority || 'NORMAL'}`);
+    doc.moveDown(1.5);
+
+    doc.fontSize(18).fillColor('#000000').text('Cliente');
+    doc.moveDown(0.8);
+    doc.fontSize(12);
+    doc.text(`Nombre: ${request.users?.name || 'No disponible'}`);
+    doc.text(`Correo: ${request.users?.email || 'No disponible'}`);
+    doc.text(`Empresa: ${request.equipments?.companies?.name || 'No disponible'}`);
+    doc.moveDown(1.5);
+
+    doc.fontSize(18).fillColor('#000000').text('Equipo');
+    doc.moveDown(0.8);
+    doc.fontSize(12);
+    doc.text(
+      `Patente / Código: ${
+        request.equipments?.code || request.equipments?.name || 'No disponible'
+      }`
+    );
+    doc.text(`Equipo: ${request.equipments?.name || 'No disponible'}`);
+    doc.text(`Tipo: ${request.equipments?.type || 'No disponible'}`);
+    doc.moveDown(1.5);
+
+    doc.fontSize(18).fillColor('#000000').text('Detalle de solicitud');
+    doc.moveDown(0.8);
+    doc.fontSize(12);
+    doc.text(`Tipo mantención: ${request.type || 'INSPECTION'}`);
+    doc.moveDown(0.4);
+    doc.text('Descripción:', { underline: true });
+    doc.moveDown(0.4);
+    doc.text(request.description || 'Sin descripción', {
+      width: 500,
+      lineGap: 4,
+    });
+    doc.moveDown(1.5);
+
+    doc.fontSize(18).fillColor('#000000').text('Ubicación');
+    doc.moveDown(0.8);
+    doc.fontSize(12);
+    doc.text(`Latitud: ${request.lastLat || 'No registrada'}`);
+    doc.text(`Longitud: ${request.lastLng || 'No registrada'}`);
+    doc.moveDown(1.5);
+
+    doc.fontSize(18).fillColor('#000000').text('Mecánico asignado');
+    doc.moveDown(0.8);
+    doc.fontSize(12);
+    doc.text(`Nombre: ${mechanic?.name || 'Sin asignar'}`);
+    doc.text(`Correo: ${mechanic?.email || 'No disponible'}`);
+    doc.text(`Teléfono: ${mechanic?.phone || 'No disponible'}`);
+    doc.moveDown(2);
+
+    doc.fontSize(10).fillColor('#777777').text(
+      'Documento generado automáticamente por Rivecor Eco Móvil 360.',
+      { align: 'center' }
+    );
+
+    doc.end();
+  } catch (e) {
+    console.error('getRequestPdf error:', e);
+
+    return res.status(500).json({
+      error: e.message,
+    });
   }
 };
 
