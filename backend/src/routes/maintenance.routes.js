@@ -2,6 +2,7 @@ const r = require('express').Router();
 const c = require('../controllers/maintenance.controller');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 
+r.get('/requests/:id/pdf', c.getRequestPdf);
 r.use(authenticate);
 
 // consultas
@@ -23,6 +24,5 @@ r.put('/requests/:id/status', authorize('ADMIN', 'OPERATOR'), c.updateRequestSta
 
 // evaluación
 r.put('/requests/:id/rate', c.rateRequest);
-r.get('/requests/:id/pdf', c.getRequestPdf);
 
 module.exports = r;
