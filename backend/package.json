@@ -32,6 +32,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.3",
-    "prisma": "^5.22.0"
+    "prisma": "^5.22.0" ,
+    "start": "node src/index.js",
+  "postinstall": "prisma generate"
   }
 }
