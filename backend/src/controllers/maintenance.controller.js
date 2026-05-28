@@ -1423,4 +1423,5 @@ module.exports = {
   updateRequestStatus,
   createFormPre,
   getRequestPdf,
+  getTechnicalRequestPdf,
 };
