@@ -1264,6 +1264,150 @@ const getRequestPdf  = async (req, res) => {
     });
   }
 };
+const getTechnicalRequestPdf = async (req, res) => {
+  try {
+    const MaintenanceRequest = getMaintenanceRequestModel();
+
+    if (!MaintenanceRequest) {
+      return res.status(500).json({ error: 'Modelo de solicitudes no disponible' });
+    }
+
+    const request = await MaintenanceRequest.findUnique({
+      where: { id: req.params.id },
+      include: {
+        users: true,
+        equipments: {
+          include: {
+            companies: true,
+          },
+        },
+        maintenance_forms: {
+          include: {
+            mechanics: true,
+          },
+        },
+      },
+    });
+
+    if (!request) {
+      return res.status(404).json({ error: 'Solicitud no encontrada' });
+    }
+
+    const form = request.maintenance_forms || {};
+    const notes = safeParseJSON(form.notes);
+    const measurements = Array.isArray(notes.measurements) ? notes.measurements : [];
+    const signature = notes.signature || {};
+    const mechanic = form.mechanics || null;
+
+    const doc = new PDFDocument({ margin: 42, size: 'A4' });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="informe-tecnico-${request.id}.pdf"`
+    );
+
+    doc.pipe(res);
+
+    doc.fontSize(22).fillColor('#111111').text('RIVECOR ECO MÓVIL 360', {
+      align: 'center',
+    });
+
+    doc.moveDown(0.4);
+
+    doc.fontSize(15).fillColor('#555555').text('Informe técnico de neumáticos', {
+      align: 'center',
+    });
+
+    doc.moveDown(1.5);
+
+    doc.fontSize(13).fillColor('#000000').text('Datos generales', {
+      underline: true,
+    });
+
+    doc.moveDown(0.5);
+    doc.fontSize(10);
+    doc.text(`Solicitud: ${request.id}`);
+    doc.text(`Fecha: ${new Date(request.createdAt).toLocaleString('es-CL')}`);
+    doc.text(`Cliente: ${request.users?.name || 'No disponible'}`);
+    doc.text(`Empresa: ${request.equipments?.companies?.name || notes.companyName || 'No disponible'}`);
+    doc.text(`Mecánico: ${mechanic?.name || notes.mechanicName || 'No disponible'}`);
+    doc.text(`Unidad: ${request.equipments?.name || notes.brandModel || 'No disponible'}`);
+    doc.text(`Patente: ${request.equipments?.code || notes.licensePlate || 'No disponible'}`);
+    doc.text(`KM: ${notes.km || 'No disponible'}`);
+    doc.text(`Tipo unidad: ${notes.unitType || request.equipments?.type || 'No disponible'}`);
+    doc.text(`Alineación: ${notes.alignmentChecked ? 'Sí' : 'No'}`);
+    doc.text(`Balanceo: ${notes.balancingChecked ? 'Sí' : 'No'}`);
+
+    doc.moveDown(1);
+
+    doc.fontSize(13).text('Mediciones', { underline: true });
+    doc.moveDown(0.5);
+
+    if (measurements.length === 0) {
+      doc.fontSize(10).text('No hay mediciones registradas.');
+    } else {
+      measurements.forEach((m, index) => {
+        const initial = Number(String(m.initialDepth || '').replace(',', '.')) || 0;
+        const current = Number(String(m.currentDepth || '').replace(',', '.')) || 0;
+        const wear = initial && current ? Math.max(initial - current, 0) : null;
+
+        if (doc.y > 690) doc.addPage();
+
+        doc
+          .fontSize(11)
+          .fillColor('#111111')
+          .text(`Neumático ${m.order || index + 1} - ${m.position || m.detail || 'Sin posición'}`, {
+            continued: false,
+          });
+
+        doc.fontSize(9).fillColor('#333333');
+        doc.text(`Eje: ${m.axleLabel || 'No disponible'}`);
+        doc.text(`Marca: ${m.brand || 'No registrada'} | Medida: ${m.size || 'No registrada'} | Serie: ${m.serial || 'No registrada'}`);
+        doc.text(`Prof. inicial: ${m.initialDepth || '-'} mm | Prof. actual: ${m.currentDepth || '-'} mm | Desgaste: ${wear !== null ? `${wear} mm` : '-'}`);
+        doc.text(`Presión: ${m.pressure || '-'} PSI`);
+        doc.text(`Observaciones: ${m.notes || 'Sin observaciones'}`);
+
+        const photos = Array.isArray(m.photos) ? m.photos : [];
+
+        if (photos.length > 0) {
+          doc.text(`Fotos adjuntas: ${photos.length}`);
+        }
+
+        doc.moveDown(0.8);
+      });
+    }
+
+    doc.moveDown(1);
+
+    if (doc.y > 650) doc.addPage();
+
+    doc.fontSize(13).fillColor('#000000').text('Firma y cierre', {
+      underline: true,
+    });
+
+    doc.moveDown(0.5);
+    doc.fontSize(10);
+    doc.text(`Firmante: ${signature.signerName || 'No registrado'}`);
+    doc.text(`Firma: ${signature.signatureText || 'No registrada'}`);
+    doc.text(`Fecha firma: ${signature.date ? new Date(signature.date).toLocaleString('es-CL') : 'No registrada'}`);
+    doc.text(`Observación final: ${notes.finalNotes || 'Sin observación final'}`);
+
+    doc.moveDown(2);
+
+    doc
+      .fontSize(9)
+      .fillColor('#777777')
+      .text('Documento generado automáticamente por Rivecor Eco Móvil 360.', {
+        align: 'center',
+      });
+
+    doc.end();
+  } catch (e) {
+    console.error('getTechnicalRequestPdf error:', e);
+    return res.status(500).json({ error: e.message });
+  }
+};
 
 module.exports = {
   createRequest,
