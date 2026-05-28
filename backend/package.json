@@ -5,10 +5,7 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "db:migrate": "prisma migrate dev",
-    "db:generate": "prisma generate",
-    "db:seed": "node src/utils/seed.js",
-    "db:studio": "prisma studio"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -32,8 +29,6 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.3",
-    "prisma": "^5.22.0" ,
-    "start": "node src/index.js",
-  "postinstall": "prisma generate"
+    "prisma": "^5.22.0"
   }
 }
