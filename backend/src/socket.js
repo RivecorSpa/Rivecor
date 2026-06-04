@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SOCKET_URL = 'https://rivecor-production.up.railway.app';
+const SOCKET_URL = 'https://rivecor-production-bf9c.up.railway.app';
 
 let socketInstance = null;
 
